@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Meeting Minutes Extractor</title>
+  <style>
+    body { font-family: sans-serif; background: #f4f7fb; padding: 20px; }
+    .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+    .upload-area { display: flex; gap: 10px; margin-bottom: 20px; }
+    .upload-area input[type="file"] { flex: 1; }
+    button { background: #1e3a5f; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+    .meeting-card { border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+    .meeting-card h3 { margin-top: 0; }
+    .action-item { background: #f9fafc; padding: 8px; margin-top: 5px; border-left: 3px solid #eab308; }
+    .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #ddd; border-top-color: #1e3a5f; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>📋 Meeting Minutes Extractor</h2>
+    <div class="upload-area">
+      <input type="file" id="audio-file" accept="audio/*">
+      <button onclick="uploadMeeting()">Upload & Extract</button>
+      <div id="status"></div>
+    </div>
+
+    <div id="meetings-list">
+      {% for meeting in meetings %}
+        <div class="meeting-card">
+          <h3>{{ meeting.title }}</h3>
+          <p><strong>Summary:</strong> {{ meeting.summary }}</p>
+          <h4>Action Items:</h4>
+          {% for item in meeting.action_items.all %}
+            <div class="action-item">
+              <strong>{{ item.description }}</strong><br>
+              <small>Assignee: {{ item.assignee|default:"Unassigned" }} | Due: {{ item.due_date|default:"Not set" }} | Priority: {{ item.priority }}</small>
+            </div>
+          {% empty %}
+            <p>No action items extracted.</p>
+          {% endfor %}
+        </div>
+      {% empty %}
+        <p>No meetings uploaded yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <script>
+    async function uploadMeeting() {
+      const fileInput = document.getElementById('audio-file');
+      const status = document.getElementById('status');
+      if (!fileInput.files.length) {
+        status.textContent = 'Please select an audio file.';
+        return;
+      }
+      const formData = new FormData();
+      formData.append('audio_file', fileInput.files[0]);
+      formData.append('title', fileInput.files[0].name);
+      status.innerHTML = '<span class="spinner"></span> Processing...';
+      try {
+        const response = await fetch('/meetings/upload/', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (response.ok) {
+          status.textContent = '✅ Done! Refresh to see results.';
+          setTimeout(() => location.reload(), 1500);
+        } else {
+          status.textContent = '❌ ' + (data.error || 'Upload failed');
+        }
+      } catch (e) {
+        status.textContent = '❌ ' + e.message;
+      }
+    }
+  </script>
+</body>
+</html>
